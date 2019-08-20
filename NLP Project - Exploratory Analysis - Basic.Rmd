@@ -1,0 +1,191 @@
+---
+title: "NLP Project - Exploratory Data Analysis"
+author: "Patrick de Guzman"
+date: "August 19, 2019"
+output: html_document
+---
+
+
+# Executive Summary 
+\newline  
+The following report is an initial exploratory analysis for the Data Science Capstone project.  
+English text is analyzed from 3 main sources: blogs, news, and twitter feeds. 
+\newline  
+
+# Analyzing All Files: Basic Summaries
+\newline  
+The following is a basic summary of the 3 english files that we will be using for analysis:  
+```{r Basic Summaries, echo = FALSE, error = FALSE, warning = FALSE}
+twitcon <- file("./data/final/en_US/en_US.twitter.txt")
+blogcon <- file("./data/final/en_US/en_US.blogs.txt")
+newscon <- file("./data/final/en_US/en_US.news.txt")
+
+blogsize <- file.info('./data/final/en_US/en_US.blogs.txt')$size/1024/1024
+newssize <- file.info('./data/final/en_US/en_US.news.txt')$size/1024/1024
+twittersize <- file.info('./data/final/en_US/en_US.twitter.txt')$size/1024/1024
+
+bloglines <- length(readLines(blogcon))
+twitlines <- length(readLines(twitcon))
+newslines <- length(readLines(newscon))
+
+blog_chars <- summary(nchar(readLines(blogcon)))
+twit_chars <- summary(nchar(readLines(twitcon)))
+news_chars <- summary(nchar(readLines(newscon)))
+
+close(twitcon)
+close(blogcon)
+close(newscon)
+
+FileInfo <- data.frame(
+      'Num of Lines' = c(bloglines, twitlines, newslines),
+      'Size in mb' = c(blogsize, twittersize, newssize)
+)
+rownames(FileInfo) <- c('Blog', 'Twitter', 'News')
+FileInfo
+```
+
+```{r Summary of Chars}
+rbind(blog_chars, twit_chars, news_chars)
+```
+
+
+```{r Loading the Subsets}
+library(qdap)
+
+twitcon <- file("./dataSubsets/UStwittersubset.txt")
+blogcon <- file("./dataSubsets/USblogsubset.txt")
+newscon <- file("./dataSubsets/USnewssubset.txt")
+
+twit_source <- (readLines(twitcon))
+blog_source <- (readLines(blogcon))
+news_source <- (readLines(newscon))
+all <- rbind(twit_source,blog_source,news_source)
+
+close(twitcon)
+close(blogcon)
+close(newscon)
+
+freq_allwords <- freq_terms(
+      all,
+      top = 100000
+      )
+
+freq_TOP100stopwords <- freq_terms(
+      all,
+      top = 30000,
+      at.least = 3,
+      stopwords = "Top100Words"
+      )
+
+freq_TMstopwords <- freq_terms(
+      all,
+      top = 30000,
+      at.least = 3,
+      stopwords = tm::stopwords("english")
+      )
+
+```
+
+
+```{r freq plots, error = FALSE, warning=FALSE}
+library(gridExtra)
+
+grid.arrange(
+      plot(freq_TOP100stopwords[1:20,]), 
+      plot(freq_TMstopwords[1:20,]),
+      nrow = 1)
+
+```
+
+
+```{r Word Coverage Analysis}
+library(ngram)
+totalwordcount <- sum(freq_allwords[2])
+
+wordcoverage <- function(terms, coverage, totalwords){
+      
+      if(sum(terms[2]) < totalwords*coverage){
+            stop("The frequencies in the terms provided do not exceed the total word count.")
+      }
+      
+      terms[,'Cumulative Freqs'] = cumsum(terms[2])
+      index <- min(which(terms[3] > totalwords*coverage))
+      
+      index
+}
+
+coverage_df <- data.frame(
+      'Total Instances' = c(
+                  sum(freq_allwords[2]), 
+                  sum(freq_TOP100stopwords[2]), 
+                  sum(freq_TMstopwords[2])
+            ),
+      'Total Word Count' = totalwordcount,
+      'Coverage of total Word Count' = c(
+                  sum(freq_allwords[2])/totalwordcount,
+                  sum(freq_TOP100stopwords[2])/totalwordcount,
+                  sum(freq_TMstopwords[2]/totalwordcount)
+            ),
+      'Unique Terms' = c(
+                  nrow(freq_allwords),
+                  nrow(freq_TOP100stopwords),
+                  nrow(freq_TMstopwords)
+            )
+)
+
+rownames(coverage_df) = c("All Words","Top 100 Stopwords Removed", "All tm Stopwords Removed")
+coverage_df
+
+```
+
+```{r Word Coverage Analysis Part 2}
+
+coverage_df_byterm <- data.frame(
+      '0.25' = c(
+                  wordcoverage(freq_allwords,0.25,totalwordcount),
+                  wordcoverage(freq_TOP100stopwords,0.25,totalwordcount),
+                  wordcoverage(freq_TMstopwords,0.25,totalwordcount)
+            ),
+      '0.50' = c(
+                  wordcoverage(freq_allwords,0.5,totalwordcount),
+                  wordcoverage(freq_TOP100stopwords,0.5,totalwordcount),
+                  wordcoverage(freq_TMstopwords,0.5,totalwordcount)
+            ),
+      '0.75' = c(
+                  wordcoverage(freq_allwords,0.75,totalwordcount),
+                  wordcoverage(freq_TOP100stopwords,0.75,totalwordcount),
+                  'NA'
+            ),
+      '0.90' = c(
+                  wordcoverage(freq_allwords,0.90,totalwordcount),
+                  'NA',
+                  'NA'
+            )
+)
+
+rownames(coverage_df_byterm) = c("All Words","Top 100 Stopwords Removed", "All tm Stopwords Removed")
+coverage_df_byterm
+```
+
+
+
+```{r Wordcloud TOP200 Stopwords Removed, warning = FALSE, error = FALSE}
+library(wordcloud)
+wordcloud(freq_TOP100stopwords$WORD,freq_TOP100stopwords$FREQ, 
+          max.words = 100, 
+          colors = c("turquoise2","darkgoldenrod1","tomato"))
+```
+```{r Wordcloud TOP200 Refined, warning = FALSE, error = FALSE}
+freq_TOP100_new <- freq_TOP100stopwords[freq_TOP100stopwords$WORD != c('the','and'),]
+
+wordcloud(freq_TOP100_new$WORD,freq_TOP100_new$FREQ, 
+          max.words = 100, 
+          colors = c("turquoise2","darkgoldenrod1","tomato"))
+```
+
+
+```{r Wordcloud All Stopwords Removed, warning = FALSE, error = FALSE}
+wordcloud(freq_TMstopwords$WORD,freq_TMstopwords$FREQ, 
+          max.words = 50, 
+          colors = c("turquoise2","darkgoldenrod1","tomato"))
+```

@@ -1,0 +1,330 @@
+---
+title: "Predictive Text Application - Exploratory Data Analysis & Model Accuracy Testing"
+author: "Patrick de Guzman"
+date: "August 27, 2019"
+output: html_document
+---
+```{r setup, include=FALSE, cache = TRUE, error = FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Source, echo = FALSE, warning = FALSE, error = FALSE}
+source('./0 - FUNCTIONS.R')
+library(qdap)
+library(data.table)
+library(ngram)
+library(stringi)
+```
+
+
+# Executive Summary  
+\newline  
+The following is an exploratory analysis prepared for the Data Science Specialization Capstone project. The project's objective was to develop a predictive text application using an English corpora from blog, twitter, and news sources ([found here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)).  
+\newline  
+File sizes, term frequency, unique term vocabulary, and word coverage statistics were computed on the corpora to gain an understanding of the suitable approach to develop a predictive model.  
+\newline  
+
+
+
+# Analyzing the Files 
+First, we can analyze the size of each file, along with the length (i.e., number of lines) and a summary of the number of characters (per entry/sentence): 
+\newline
+```{r File Analysis, warning= FALSE, error= FALSE, echo = FALSE}
+files <- c('blogs','news','twitter')
+
+df <- data.frame()
+
+for(file in files){
+      path <- paste0('./data/Original/final/en_US/en_US.',file,'.txt')
+      data <- read_file(path)
+      info <- cbind(round(file.info(path)$size/(1024**2), digits = 2),
+                length(data),
+                summary(nchar(data))[1], # Extract min of nchar
+                summary(nchar(data))[4], # Extract mean of nchar
+                summary(nchar(data))[6]  # Extract max of nchar
+                )
+      df <- rbind(df, info)
+      rm(ls = 'data')
+}
+
+rownames(df) <- files
+colnames(df) <- c("Size (MB)",
+                  "Num.of.Lines",
+                  "Min Characters (by line)",
+                  "Mean Characters (by line)",
+                  "Max Characters (by line)")
+df
+```
+
+\newline
+From above, we see that the files are extremely large. Therefore, to analyze word coverage, we will sample the file at different subset %'s and review the number of unique terms per each sample size to see if the number of unique terms in the vocabulary tapers off at some level that we can infer for the entire file. 
+
+\newline 
+
+# Term Analysis: Term Frequency, Word Coverage 
+
+```{r Unique Terms, echo = FALSE}
+library(qdap)
+
+if(!file.exists('./data/EDA')){
+      dir.create('./data/EDA')
+}
+
+########################################################################################
+
+subset <- 0.01
+
+if(!file.exists('./data/EDA/Freq_0.01.csv')){
+blogs <- read_file(paste0('./data/Original/final/en_US/en_US.blogs.txt'))
+set.seed(123) # set seed (for reproducibility)
+blogs <- blogs[runif(length(blogs), min = 0, max = 1) < subset]
+
+news <- read_file(paste0('./data/Original/final/en_US/en_US.news.txt'))
+set.seed(123) # set seed (for reproducibility)
+news <- news[runif(length(news), min = 0, max = 1) < subset]
+
+twitter <- read_file(paste0('./data/Original/final/en_US/en_US.twitter.txt'))
+set.seed(123) # set seed (for reproducibility)
+twitter <- twitter[runif(length(twitter), min = 0, max = 1) < subset]
+
+all <- rbind(blogs, news, twitter); rm(list = c('blogs','news','twitter'))
+
+freq <- freq_terms(all, top = 500000); rm(list = 'all')
+freq <- freq[freq$FREQ > 4,]
+write.table(freq, file = './data/EDA/Freq_0.01.csv', row.names = FALSE, sep = ",")
+
+}
+
+Sample_0.01 <- fread('./data/EDA/Freq_0.01.csv')
+Sample_0.01 <- data.frame("Unique.Terms" = length(unique(Sample_0.01$WORD)), 
+           "Total.Instances" = sum(Sample_0.01$FREQ))
+########################################################################################
+
+subset <- 0.025
+
+if(!file.exists('./data/EDA/Freq_0.025.csv')){
+blogs <- read_file(paste0('./data/Original/final/en_US/en_US.blogs.txt'))
+set.seed(123) # set seed (for reproducibility)
+blogs <- blogs[runif(length(blogs), min = 0, max = 1) < subset]
+
+news <- read_file(paste0('./data/Original/final/en_US/en_US.news.txt'))
+set.seed(123) # set seed (for reproducibility)
+news <- news[runif(length(news), min = 0, max = 1) < subset]
+
+twitter <- read_file(paste0('./data/Original/final/en_US/en_US.twitter.txt'))
+set.seed(123) # set seed (for reproducibility)
+twitter <- twitter[runif(length(twitter), min = 0, max = 1) < subset]
+
+all <- rbind(blogs, news, twitter); rm(list = c('blogs','news','twitter'))
+
+freq <- freq_terms(all, top = 500000); rm(list = 'all')
+freq <- freq[freq$FREQ > 4,]
+write.table(freq, file = './data/EDA/Freq_0.025.csv', row.names = FALSE, sep = ",")
+
+}
+
+Sample_0.025 <- fread('./data/EDA/Freq_0.025.csv')
+Sample_0.025 <- data.frame("Unique.Terms" = length(unique(Sample_0.025$WORD)), 
+           "Total.Instances" = sum(Sample_0.025$FREQ))
+########################################################################################
+
+subset <- 0.05
+
+if(!file.exists('./data/EDA/Freq_0.05.csv')){
+blogs <- read_file(paste0('./data/Original/final/en_US/en_US.blogs.txt'))
+set.seed(123) # set seed (for reproducibility)
+blogs <- blogs[runif(length(blogs), min = 0, max = 1) < subset]
+
+news <- read_file(paste0('./data/Original/final/en_US/en_US.news.txt'))
+set.seed(123) # set seed (for reproducibility)
+news <- news[runif(length(news), min = 0, max = 1) < subset]
+
+twitter <- read_file(paste0('./data/Original/final/en_US/en_US.twitter.txt'))
+set.seed(123) # set seed (for reproducibility)
+twitter <- twitter[runif(length(twitter), min = 0, max = 1) < subset]
+
+all <- rbind(blogs, news, twitter); rm(list = c('blogs','news','twitter'))
+
+freq <- freq_terms(all, top = 500000); rm(list = 'all')
+freq <- freq[freq$FREQ > 4,]
+write.table(freq, file = './data/EDA/Freq_0.05.csv', row.names = FALSE, sep = ",")
+
+}
+
+Sample_0.05 <- fread('./data/EDA/Freq_0.05.csv')
+Sample_0.05 <- data.frame("Unique.Terms" = length(unique(Sample_0.05$WORD)), 
+           "Total.Instances" = sum(Sample_0.05$FREQ))
+########################################################################################
+
+subset <- 0.07
+
+if(!file.exists('./data/EDA/Freq_0.07.csv')){
+blogs <- read_file(paste0('./data/Original/final/en_US/en_US.blogs.txt'))
+set.seed(123) # set seed (for reproducibility)
+blogs <- blogs[runif(length(blogs), min = 0, max = 1) < subset]
+
+news <- read_file(paste0('./data/Original/final/en_US/en_US.news.txt'))
+set.seed(123) # set seed (for reproducibility)
+news <- news[runif(length(news), min = 0, max = 1) < subset]
+
+twitter <- read_file(paste0('./data/Original/final/en_US/en_US.twitter.txt'))
+set.seed(123) # set seed (for reproducibility)
+twitter <- twitter[runif(length(twitter), min = 0, max = 1) < subset]
+
+all <- rbind(blogs, news, twitter); rm(list = c('blogs','news','twitter'))
+
+freq <- freq_terms(all, top = 500000); rm(list = 'all')
+freq <- freq[freq$FREQ > 4,]
+write.table(freq, file = './data/EDA/Freq_0.07.csv', row.names = FALSE, sep = ",")
+
+}
+
+Sample_0.07 <- fread('./data/EDA/Freq_0.07.csv')
+Sample_0.07 <- data.frame("Unique.Terms" = length(unique(Sample_0.07$WORD)), 
+           "Total.Instances" = sum(Sample_0.07$FREQ))
+########################################################################################
+
+subset <- 0.1
+
+if(!file.exists('./data/EDA/Freq_0.10.csv')){
+blogs <- read_file(paste0('./data/Original/final/en_US/en_US.blogs.txt'))
+set.seed(123) # set seed (for reproducibility)
+blogs <- blogs[runif(length(blogs), min = 0, max = 1) < subset]
+
+news <- read_file(paste0('./data/Original/final/en_US/en_US.news.txt'))
+set.seed(123) # set seed (for reproducibility)
+news <- news[runif(length(news), min = 0, max = 1) < subset]
+
+twitter <- read_file(paste0('./data/Original/final/en_US/en_US.twitter.txt'))
+set.seed(123) # set seed (for reproducibility)
+twitter <- twitter[runif(length(twitter), min = 0, max = 1) < subset]
+
+all <- rbind(blogs, news, twitter); rm(list = c('blogs','news','twitter'))
+
+freq <- freq_terms(all, top = 500000); rm(list = 'all')
+freq <- freq[freq$FREQ > 4,]
+write.table(freq, file = './data/EDA/Freq_0.10.csv', row.names = FALSE, sep = ",")
+
+}
+Sample_0.1 <- fread('./data/EDA/Freq_0.10.csv')
+Sample_0.1 <- data.frame("Unique.Terms" = length(unique(Sample_0.1$WORD)), 
+           "Total.Instances" = sum(Sample_0.1$FREQ))
+
+########################################################################################
+
+Terms_Analysis <- rbind(Sample_0.01,
+                        Sample_0.025,
+                        Sample_0.05, 
+                        Sample_0.07, 
+                        Sample_0.1)
+
+rownames(Terms_Analysis) <- c("Sample_0.01",
+                              "Sample_0.025",
+                              "Sample_0.05",
+                              "Sample_0.07",
+                              "Sample_0.10")
+Terms_Analysis
+```
+
+```{r Plot of Unique Terms by Sample Size, echo = FALSE, error = FALSE, warning = FALSE}
+library(ggplot2)
+ggplot(data = Terms_Analysis, aes(x = c(1,2.5,5,7,10), y = Unique.Terms)) + geom_line()
+```
+
+
+\newline 
+
+From the graph above, it seems that the limit of unique terms within the total data set doesn't appear in the foreseeable (and computationally-feasible) set of sample sizes. It also isn't feasible to continue to test larger and larger sample sizes as the largest sample we've tested above (10%) would yield a 55 MB subset file (i.e., 10% of 200 + 196 + 159 MB from the blogs, twitter, and news files).
+\newline  
+However, from further analysis of the unique terms and frequencies at the 10% subset level, it's noted that most of these 'unique' occurences are actually words either with special characters or not typical english words at all. These types of special occurrences can only be expected to increase in numbers as we increase the sample size of the total dataset, therefore, inflating the estimated number of 'unique' terms as we increase the sample size. 
+
+\newline  
+
+In addition, we can review the coverage of the first few words (most of them being stop words) to get an idea of the frequency skewness within the unique terms:  
+```{r Term Frequency Skewness, echo = FALSE}
+Freq_0.01 <- fread('./data/EDA/Freq_0.01.csv')
+Freq_0.025 <- fread('./data/EDA/Freq_0.025.csv')
+Freq_0.05 <- fread('./data/EDA/Freq_0.05.csv')
+Freq_0.07 <- fread('./data/EDA/Freq_0.07.csv')
+Freq_0.10 <- fread('./data/EDA/Freq_0.10.csv')
+
+topwords <- 10000
+
+freq_skewness <- data.frame("Sample" = c(1,2.5,5,7,10), 
+                            "Coverage" = c(sum(Freq_0.01$FREQ[1:topwords])/sum(Freq_0.01$FREQ),
+                                                      sum(Freq_0.025$FREQ[1:topwords])/sum(Freq_0.025$FREQ),
+                                                      sum(Freq_0.05$FREQ[1:topwords])/sum(Freq_0.05$FREQ),
+                                                      sum(Freq_0.07$FREQ[1:topwords])/sum(Freq_0.07$FREQ),
+                                                      sum(Freq_0.10$FREQ[1:topwords])/sum(Freq_0.10$FREQ)))
+
+freq_skewness
+```
+\newline  
+From the analysis above, we see at each of the sample sizes, the top 10,000 words cover >90% of all instances within each subset (even at the 10% sample size level with 65,000 unique terms and 20 million total instances). Since nearly all instances are held within the top 10,000 words, we can have reasonable assurance that our model will capture most n-grams that are fed into the predictor. 
+
+\newline  
+For simplicity (as well as due to computational and memory constraints), we will use the 2.5% subset size for training the final model. 
+
+# Results: Accuracy & System Time
+
+Accuracy was tested by running the final prediction function (found in the script '3 - Predictive Text App - Model.R') on the testing set found in the './data/ngrams/testing' folder. The test ngram, target word, prediction, and accuracy results of each row was recorded and written to separate tables in './data/Results'.  
+\newline  
+
+The script developed for the accuracy testing performed is found in the '4 - Predictive Text App - Testing.R' file within the accompanying GitHub repository. 
+\newline  
+
+For simplicity, accuracy was given a score of 1 if the predicted word was identical to the target word, and a score between 2-3 if the target word was found within the top 2-3 predicted words. In the event that the target word is not found in these top 3 words, 'NA' is returned. Therefore, we can calculate ratios on the following:  
+\newline  
+
+1. What proportion of predictions the function was able to predict perfectly,  
+2. What proportion of predictions the function was able to predict within the top 3 words,  
+3. What proportion of predictions were NOT within the top 3 (i.e., missed predictions).  
+\newline  
+
+## Accuracy Results  
+The accuracy testing results are as follows:  
+```{r Results, echo = FALSE}
+results_df <- data.frame()
+
+for(results in list.files('./data/Results')){
+      results_df <- rbind(results_df, fread(paste0('./data/Results/',results)))
+}
+
+calc_results <- function(data){
+      missed_pct <- round(mean(is.na(data$accuracy))*100, digits = 2)
+      top_pct <- round(nrow(subset(data, accuracy == 1))*100 / nrow(data), digits = 2)
+      top3_pct <- round(100 - missed_pct, digits = 2)
+
+cbind(top_pct, top3_pct, missed_pct)
+}
+
+calc_results(results_df)
+```
+
+We also review the accuracy of the prediction model by the size of the ngram input:  
+
+```{r Accuracy Results, echo = FALSE}
+results_df$n <- apply(results_df[,1,drop = F], 1, function(x) length(unlist(strsplit(x, " "))))
+split_df <- split(results_df, results_df$n); split_df <- split_df[1:4]
+
+results_by_size <- data.frame()
+for(i in split_df){
+      results_by_size <- rbind(results_by_size, calc_results(i))
+}
+row.names(results_by_size) <- 1:4
+results_by_size
+```
+
+# Conclusion
+From the exploratory analysis performed, a small subset at 2.5% of the total corpora was used to feed the final dictionary of the predictive model. 
+\newline  
+
+A Stupid Backoff model was simulated using a function to search for partially completed sentences within the largest possible n-gram file and 'backing off' to n-1 grams when necessary.  
+\newline  
+
+From the final model, a top prediction accuracy score of 11.5% was achieved (lowest at 8.61% for uni-gram inputs and highest at 15.8% for bi-gram inputs). In addition, a top-3 prediction score of 21.3% was achieved, indicating a total 'miss' rate of 78.7%. 
+\newline  
+
+Moving forward, we plan to explore in further developing the model to include higher-level ngrams to boost accuracy in higher-order phrase predictions and stemming/lemmatization techniques to aid in the total size of the final model's dictionary. 
+
+

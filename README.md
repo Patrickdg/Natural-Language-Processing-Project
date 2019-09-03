@@ -2,12 +2,13 @@
 This project was prepared as a capstone project for the Coursera/John Hopkins Data Science Specialization.
 
 ## Synopsis
-Using text data from blogs, twitter, and news sources, natural language processing techniques were explored to develop a model to predict text following user input. 
+A **predictive text application** was developed using a corpora of *[English text from blog, news, and twitter sources](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)*.   
+\newline  
 
-Overall, ______________ insert results here (model development, assumptions made, size + speed considerations, prediction accuracy) _________________
+Using a **5-gram dictionary** paired with a *'Stupid Backoff' model*, the application predicts the next word of sentences from user input with a top prediction rate of 11.51% and top-3 rate of 21.31%. 
 
-## Techniques
-Tokenization, word frequencies, and wordclouds were used to explore the data, and a 'Stupid Back-off' model with a uni- to quint-gram dictionary was used to develop the final predictive model. 
+The final application can be found [here](https://patrickdg.shinyapps.io/PredictiveTextApp/). 
+
 
 
 

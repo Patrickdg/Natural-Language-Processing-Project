@@ -1,0 +1,157 @@
+---
+title: "Next Word Predictive Text Application"
+author: "Patrick de Guzman"
+date: "September 2, 2019"
+output:
+  ioslides_presentation:
+    smaller: true
+---
+
+```{r setup, include=FALSE, error = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(error = FALSE)
+
+library(qdap)
+library(data.table)
+
+```
+
+## Introduction
+A **predictive text application** was developed using a corpora of *[English text from blog, news, and twitter sources](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)*.   
+\newline  
+
+Using a **5-gram dictionary** paired with a *'Stupid Backoff' model*, the application predicts the next word of sentences from user input with a top prediction rate of 11.51% and top-3 rate of 21.31%. 
+
+The final application can be found [here](https://patrickdg.shinyapps.io/PredictiveTextApp/). 
+
+Below are simple desriptive statistics of the source files used.
+
+```{r, echo = FALSE, comment = ""}
+source('./0 - FUNCTIONS.R')
+files <- c('blogs','news','twitter')
+
+df <- data.frame()
+
+for(file in files){
+      path <- paste0('./data/Original/final/en_US/en_US.',file,'.txt')
+      data <- read_file(path)
+      info <- cbind(round(file.info(path)$size/(1024**2), digits = 2),
+                length(data),
+                summary(nchar(data))[1], # Extract min of nchar
+                summary(nchar(data))[4], # Extract mean of nchar
+                summary(nchar(data))[6]  # Extract max of nchar
+                )
+      df <- rbind(df, info)
+      rm(ls = 'data')
+}
+
+rownames(df) <- files
+colnames(df) <- c("Size (MB)",
+                  "Num.of.Lines",
+                  "Min Characters (by line)",
+                  "Mean Characters (by line)",
+                  "Max Characters (by line)")
+df
+```
+
+## Building n-gram Dictionary
+
+At a few key sample sizes, the data was analyzed for total term instances, unique terms, and percentage coverage of total instances from the first 1000 words. 
+
+```{r, echo = FALSE, error = FALSE, warning = FALSE, comment = ""}
+
+if(!file.exists('./data/EDA')){
+      dir.create('./data/EDA')
+}
+
+########################################################################################
+
+Sample_0.01 <- fread('./data/EDA/Freq_0.01.csv')
+Sample_0.01 <- data.frame("Unique.Terms" = length(unique(Sample_0.01$WORD)), 
+           "Total.Instances" = sum(Sample_0.01$FREQ))
+########################################################################################
+
+Sample_0.025 <- fread('./data/EDA/Freq_0.025.csv')
+Sample_0.025 <- data.frame("Unique.Terms" = length(unique(Sample_0.025$WORD)), 
+           "Total.Instances" = sum(Sample_0.025$FREQ))
+########################################################################################
+
+Sample_0.05 <- fread('./data/EDA/Freq_0.05.csv')
+Sample_0.05 <- data.frame("Unique.Terms" = length(unique(Sample_0.05$WORD)), 
+           "Total.Instances" = sum(Sample_0.05$FREQ))
+########################################################################################
+
+Sample_0.07 <- fread('./data/EDA/Freq_0.07.csv')
+Sample_0.07 <- data.frame("Unique.Terms" = length(unique(Sample_0.07$WORD)), 
+           "Total.Instances" = sum(Sample_0.07$FREQ))
+########################################################################################
+
+Sample_0.1 <- fread('./data/EDA/Freq_0.10.csv')
+Sample_0.1 <- data.frame("Unique.Terms" = length(unique(Sample_0.1$WORD)), 
+           "Total.Instances" = sum(Sample_0.1$FREQ))
+
+########################################################################################
+Terms_Analysis <- rbind(Sample_0.01,
+                        Sample_0.025,
+                        Sample_0.05, 
+                        Sample_0.07, 
+                        Sample_0.1)
+
+rownames(Terms_Analysis) <- c("Sample_0.01",
+                              "Sample_0.025",
+                              "Sample_0.05",
+                              "Sample_0.07",
+                              "Sample_0.10")
+
+Freq_0.01 <- fread('./data/EDA/Freq_0.01.csv')
+Freq_0.025 <- fread('./data/EDA/Freq_0.025.csv')
+Freq_0.05 <- fread('./data/EDA/Freq_0.05.csv')
+Freq_0.07 <- fread('./data/EDA/Freq_0.07.csv')
+Freq_0.10 <- fread('./data/EDA/Freq_0.10.csv')
+
+topwords <- 10000
+
+freq_skewness <- data.frame("Sample" = c(1,2.5,5,7,10), 
+                            "Coverage" = c(sum(Freq_0.01$FREQ[1:topwords])/sum(Freq_0.01$FREQ),
+                                                      sum(Freq_0.025$FREQ[1:topwords])/sum(Freq_0.025$FREQ),
+                                                      sum(Freq_0.05$FREQ[1:topwords])/sum(Freq_0.05$FREQ),
+                                                      sum(Freq_0.07$FREQ[1:topwords])/sum(Freq_0.07$FREQ),
+                                                      sum(Freq_0.10$FREQ[1:topwords])/sum(Freq_0.10$FREQ)))
+
+Terms_Analysis <- cbind(Terms_Analysis, round(freq_skewness$Coverage, digits = 4)*100)
+names(Terms_Analysis) <- c("Unique.Terms", "Total.Instances", "First1000.Coverage %")
+Terms_Analysis
+```
+
+**Sample subset** of 2.5% of the total corpora was cleaned and processed to build the final predictive model 'dictionary' of 1- to 5-gram tokens.  
+
+**Pruning** of the final dictionary was performed (removed ngrams with frequency < 4) for substantial savings of disk space and increased prediction speed with minimal impact on prediction accuracy.   
+
+## Predictive Model
+
+From the final dictionary, a search algorithm was created to perform the following:  
+\newline  
+
+1. **Search for the input string** based on the number of words 'n' in the corresponding n-gram file, but  
+2. **if not found** within the largest possible n-gram file, *search 'n-1' words in the 'n-1' gram file* (['Stupid Backoff'](https://www.aclweb.org/anthology/D07-1090)).  
+3. **Repeat 'backoff'** until match occurs.  
+4. Once a match is found, **subset the corresponding n-gram file** based on the matched 'n' words from user input, rank top 'next' words based on term frequency, and return the top 1-3 predictions.  
+\newline  
+  
+![[Predictive Text App](https://patrickdg.shinyapps.io/PredictiveTextApp/)](AppScreenshot.jpg)
+
+## Results and Future Outlook  
+From the final model, a **top prediction accuracy score of 11.5%** was achieved (*lowest at 8.61% for uni-gram inputs and highest at 15.8% for bi-gram inputs*). In addition, a **top-3 prediction score of 21.3%** was achieved, indicating a total 'miss' rate of 78.7%.  
+\newline  
+
+The low accuracy rate from the simple model is expected as the 'Stupid backoff' search algorithm does not take other important factors into account (**such as part-of-speech of words and sentence context** past the quint-gram length).  
+\newline 
+
+Moving forward, plans to further develop the model involve:  
+\newline  
+
+1. the inclusion of **higher-level ngrams** to boost accuracy in higher-order phrase predictions, and  
+2. **stemming/lemmatization techniques** to boost vocabulary by 'reducing' similar ngrams to their roots and allowing a larger sample subset used in the final dictionary size.  
+

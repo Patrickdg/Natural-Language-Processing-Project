@@ -9,7 +9,7 @@ Using a **5-gram dictionary** paired with a *'Stupid Backoff' model*, the applic
 
 The final application can be found [here](https://patrickdg.shinyapps.io/PredictiveTextApp/). 
 
-
+A short presentation describing the analysis and applicatoin can be found [here](http://rpubs.com/patrickdg/NextWordPredictiveTextApp)
 
 
 

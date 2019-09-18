@@ -10,5 +10,6 @@ The final application can be found [here](https://patrickdg.shinyapps.io/Predict
 
 A short presentation describing the analysis and application can be found [here](http://rpubs.com/patrickdg/NextWordPredictiveTextApp). 
 
-
-
+## Exploratory Data Analysis - Word Clouds
+[Initial Exploration](http://rpubs.com/patrickdg/521125)
+[Exploration with Final Testing Results](http://rpubs.com/patrickdg/PredictiveTextApp)
